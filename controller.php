@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 	ini_set('display_errors',1);
 	error_reporting(E_ALL);
 
@@ -11,29 +12,38 @@
           	return $line_of_text;
  	}
 
-	$csv = 'users.csv';
-	$tempUsrs = readCSV($csv);
-
 	class user{
 		private $firstname;
 		private $lastname;
 		private $email;
+
+		public function __construct($first, $last, $eml){
+			$this->firstname=$first;
+			$this->lastname=$last;
+			$this->email=$eml;
+		}
 	}
 
 	class users{
-		public $users = array();
+		private $users = [];
 
 		public function __construct(){
-			$this->$users = $tempUsrs;
+			$this->users = readCSV('users.csv');
 		}
 
-		public static  function addUser($first, $last, $eml){
+		public function addUser($first, $last, $eml){
 			$obj = new user($first, $last, $eml);
-			$this->$users = $obj;
+			array_push($this->users,$obj);
+			$file = fopen('users.csv',"a");
+              		foreach ($this->users as $line=>$next){
+                          	fputcsv($file,$next);
+                      	}
+                      	fclose($file);
+
 		}
 
-		public static function userTable(){
-			foreach($this->$users as $user){
+		public function userTable(){
+			foreach($this->users as $user){
 				echo '<tr>
                                         <td>'.$user[0].'</td>
                                         <td>'.$user[1].'</td>
@@ -54,13 +64,13 @@
 			$users[$line] = $user;
 		}
 
-		public function __destruct(){
-			$file = fopen($csv,"w");
-			foreach ($users as $line){
-  				fputcsv($file,explode(',',$line));
-  			}
-			fclose($file);
-		}
+		//public function __destruct(){
+		//	$file = fopen('users.csv',"a");
+		//	foreach ($this->users as $line){
+  		//		fputcsv($file,explode(',',$line));
+  		//	}
+		//	fclose($file);
+		//}
 	}
 
    	$obj = new main();
@@ -88,34 +98,36 @@
 		public function put() {}
 		public function delete() {}
 		public function __destruct(){
-			echo $this->$pageBody;
+			echo $this->pageBody;
 		}
    	}
 
    	class homepage extends page {
      		public function get() {
-      			echo '<form method=POST>
+			$newUser = new users();
+      			echo '<form method="get">
  			     	 First name:<br>
-  				 <input type="text" name="firstname">
+  				 <input required type="text" name="firstname">
   				 <br>
   				 Last name:<br>
-  				 <input type="text" name="lastname">
+  				 <input required type="text" name="lastname">
   				 <br>
   				 Email address:<br>
-  				 <input type="test" name="email">
-  				 <br>
-			      </form>
-			      <form method=GET>
+  				 <input required type="test" name="email">
+  				 <br><br>
   				 <button type="submit" name="page" value="table">Add User</button>
 
 				 </form>
  			';
-			$newUser = users::addUser($_POST("firstname"), $_POST("lastname"), $_POST("email"));
-     		}
+			if(isset($_REQUEST["firstname"]) && $_REQUEST["firstname"] != '' && isset($_REQUEST["lastname"]) && $_REQUEST["lastname"] != '' && isset($_REQUEST["email"]) && $_REQUEST["email"] != ''){
+				$newUser->addUser($_GET["firstname"], $_GET["lastname"], $_GET["email"]);
+     			}
+		}
    	}
 
    	class table extends page {
      		public function get() {
+			$userTables = new users();
 			echo' <head>
 			      <style>
 				table, th, td {
@@ -134,14 +146,14 @@
     					<td>Lastname</td>
     					<td>Email</td>
   					</tr>';
-				$userTables = users::userTable();
+				$userTables->userTable();
 			echo'	</table>
 				</body>
 			';
      		}
    	}
 
-	class edit extends page {
+		class edit extends page {
                 public function get() {
                         echo '<form method=POST>
                                  First name:<br>
