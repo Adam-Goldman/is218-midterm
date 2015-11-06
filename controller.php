@@ -1,7 +1,7 @@
 <?php
 
-	ini_set('display_errors',1);
-	error_reporting(E_ALL);
+	//ini_set('display_errors',1);
+	//error_reporting(E_ALL);
 
 	function readCSV($csvFile){
           	$file_handle = fopen($csvFile, 'r');
@@ -13,9 +13,9 @@
  	}
 
 	class user{
-		private $firstname;
-		private $lastname;
-		private $email;
+		public $firstname;
+		public $lastname;
+		public $email;
 
 		public function __construct($first, $last, $eml){
 			$this->firstname=$first;
@@ -25,7 +25,7 @@
 	}
 
 	class users{
-		private $users = [];
+		public $users = [];
 
 		public function __construct(){
 			$this->users = readCSV('users.csv');
@@ -33,35 +33,62 @@
 
 		public function addUser($first, $last, $eml){
 			$obj = new user($first, $last, $eml);
-			array_push($this->users,$obj);
+			$tempArray[0] = $obj->firstname;
+			$tempArray[1] = $obj->lastname;
+			$tempArray[2] = $obj->email;
 			$file = fopen('users.csv',"a");
-              		foreach ($this->users as $line=>$next){
-                          	fputcsv($file,$next);
-                      	}
+             		fputcsv($file,$tempArray);
                       	fclose($file);
 
 		}
 
 		public function userTable(){
-			foreach($this->users as $user){
-				echo '<tr>
-                                        <td>'.$user[0].'</td>
-                                        <td>'.$user[1].'</td>
-                                        <td>'.$user[2].'</td>
-                                        </tr>
-					<form method=GET>
-                                  <button type="submit" name="page" value="edit">Edit User</button>
-                                  </form>
+			foreach($this->users as $value){
+				if($value[0] != '' && $value[1] != '' && $value[2] != ''){
+					echo '<tr>
+                                	        <td>'.$value[0].'</td>
+                                        	<td>'.$value[1].'</td>
+                                        	<td>'.$value[2].'</td>
+						<td><form method=GET>
+                                        	<input type="hidden" name="email" value="'.$value[2].'">
+						<input type="hidden" name="first" value="'.$value[0].'">
+						<input type="hidden" name="last" value="'.$value[1].'">
+                                  	<button type="submit" name="page" value="edit">Edit User</button>
+                                  	</form></td>
+                                        	</tr>
 				  ';
+				}
 			}
 		}
 
-		public static function updateUser($first, $last, $eml){
-			$line = array_search($eml, $users);
-			$user = $users[$line];
-			$user[0] = $first;
-			$user[1] = $last;
-			$users[$line] = $user;
+		public function updateUser($eml, $first, $last){
+			$tempArray = [];
+			foreach($this->users as $value){
+				array_push($tempArray, $value);
+			}
+			$file = fopen('users.csv',"w");
+			foreach($tempArray as $line){
+				if($eml === $line[2]){
+					$line[0] = $first;
+					$line[1] = $last;
+				}
+				fputcsv($file,$line);
+			}
+			fclose($file);
+		}
+
+		public function deleteUser($eml){
+			$tempArray = [];
+			foreach($this->users as $value){
+				if($eml != $value[2]){
+					array_push($tempArray, $value);
+				}
+			}
+			$file = fopen('users.csv',"w");
+			foreach ($tempArray as $line){
+				fputcsv($file,$line);
+			}
+			fclose($file);
 		}
 
 		//public function __destruct(){
@@ -104,7 +131,6 @@
 
    	class homepage extends page {
      		public function get() {
-			$newUser = new users();
       			echo '<form method="get">
  			     	 First name:<br>
   				 <input required type="text" name="firstname">
@@ -115,19 +141,29 @@
   				 Email address:<br>
   				 <input required type="test" name="email">
   				 <br><br>
+				 <input hidden type"add" value="true">
   				 <button type="submit" name="page" value="table">Add User</button>
 
 				 </form>
  			';
-			if(isset($_REQUEST["firstname"]) && $_REQUEST["firstname"] != '' && isset($_REQUEST["lastname"]) && $_REQUEST["lastname"] != '' && isset($_REQUEST["email"]) && $_REQUEST["email"] != ''){
-				$newUser->addUser($_GET["firstname"], $_GET["lastname"], $_GET["email"]);
      			}
-		}
-   	}
+	}
 
    	class table extends page {
      		public function get() {
+			$newUser = new users();
+			$saveUser = new users();
+			$deleteUser = new users();
 			$userTables = new users();
+			if(isset($_GET["firstname"]) &&	$_GET["firstname"] != '' && isset($_GET["lastname"]) && $_GET["lastname"] != '' && isset($_GET["email"]) && $_GET["email"] != '') {
+				$newUser->addUser($_GET["firstname"], $_GET["lastname"], $_GET["email"]);
+			}
+			if($_GET["save"] === "true"){
+				$saveUser->updateUser($_GET["email"], $_GET["firstname"], $_GET["lastname"]);
+			}
+			elseif($_GET["delete"] === "true"){
+				$deleteUser->deleteUser($_GET["email"]);
+			}
 			echo' <head>
 			      <style>
 				table, th, td {
@@ -140,7 +176,7 @@
 			      </style>
 			      </head>
 		              <body>
-				<table style="width:80%">
+				<table style="width:100%">
   				<tr>
     					<td>Firstname</td>
     					<td>Lastname</td>
@@ -155,19 +191,23 @@
 
 		class edit extends page {
                 public function get() {
-                        echo '<form method=POST>
+                        echo '<form method="get">
                                  First name:<br>
-                                 <input type="text" name="firstname">
+                                 <input type="text" name="firstname" value='.$_GET["first"].'>
                                  <br>
                                  Last name:<br>
-                                 <input type="text" name="lastname">
-                                 <br>
-                              </form>
-                              <form method=GET>
-                                 <button type="submit" name="page" value="table">Add User</button>
-                                 </form>
+                                 <input type="text" name="lastname" value='.$_GET["last"].'>
+                                 <br><br>
+				 <input hidden name="save" value="true">
+				 <input hidden name="email" value='.$_GET["email"].'>
+                                 <button type="submit" name="page" value="table">Save</button>
+				 </form>
+				 <form method="get">
+				 <input hidden name="delete" value="true">
+				 <input hidden name="email" value='.$_GET["email"].'>
+				 <button type="submit" name="page" value="table">Delete</button>
+				 </form>
                         ';
-			//$saveUser = users::
                 }
         }
 
